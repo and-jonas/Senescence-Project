@@ -154,3 +154,48 @@ avg_rflt_cr_smth_der1 <- spc %>%
 saveRDS(avg_rflt_cr_smth_der1, file = "Spectra/avg_rflt_cr_smth_der1.rds")
 
 #====================================================================================== -
+
+#> prep SI datasets ----
+
+#load smoothed, averaged, trimmed spectra 
+spc <- readRDS("Spectra/smth_avg_rflt_untrimmed.rds")
+
+#exclude 2018-06-10
+spc <- spc[!spc$meas_date == "2018-06-10",]
+
+#calculate and scale SI
+SI <- f_calc_si(spc) %>%
+  f_scale_si(sub = "post_heading")
+
+saveRDS(SI, file = "SI/SI_sc_posthead.rds")
+
+#load gddah_data and match_dates
+gddah <- read.csv("Helper_files/gddah_data.csv") %>% 
+  mutate(meas_date = meas_date %>% as.Date())
+
+#add meas_gddah to SI data, for derivation of DynPars
+SI_compl <- left_join(SI, gddah, by = c("Plot_ID", "meas_date")) %>% 
+  dplyr::select(-contains("SI"), everything())
+
+saveRDS(SI_compl, file = "SI/SI_sc_posthead_compl.rds")
+
+#====================================================================================== -
+
+#> join spectral and scoring data ----
+
+#add design and measurement information to data 
+spc <- readRDS("SI/SI_sc_posthead.rds")
+scr <- readRDS("Scorings/scorings_scaled.rds")
+
+#load gddah_data and match_dates
+gddah_data <- read.csv("Helper_files/gddah_data.csv") %>% 
+  mutate(meas_date = meas_date %>% as.Date())
+match_dates <- read_excel("Helper_files/match_dates.xlsx")
+
+data <- f_match_join(spc, scr, gddah_data, match_dates) %>% 
+  dplyr::select(-contains("SI_"), everything()) %>% 
+  filter(complete.cases(.))
+
+saveRDS(data, "Matched/SI_scr_compl.rds")
+
+#====================================================================================== -

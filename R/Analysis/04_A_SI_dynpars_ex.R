@@ -30,33 +30,13 @@ setwd(dir)
 
 #====================================================================================== -
 
-#load smoothed, averaged, trimmed spectra 
-spc <- readRDS("Spectra/smth_avg_rflt_untrimmed.rds")
+#SI performance analysis ----
 
-#exclude 2018-06-10
-spc <- spc[!spc$meas_date == "2018-06-10",]
+data <- readRDS("Matched/SI_scr_compl.rds")
 
-#calculate and scale SI
-SI <- f_calc_si(spc) %>%
-  f_scale_si(sub = "post_heading")
-
-saveRDS(SI, file = "SI/SI_sc_posthead.rds")
-
-#====================================================================================== -
-
-#load gddah_data and match_dates
-gddah <- read.csv("Helper_files/gddah_data.csv") %>% 
-  mutate(meas_date = meas_date %>% as.Date()) %>% 
-  dplyr::select(Plot_ID, meas_date, meas_GDDAH)
-match_dates <- read_excel("Helper_files/match_dates.xlsx")
-
-#add design and measurement information to data 
-spc <- readRDS("SI/SI_sc_posthead.rds")
-scr <- readRDS("Scorings/scorings_scaled.rds")
-
-data <- f_match_join(spc, scr, gddah_data, match_dates) %>% 
-  dplyr::select(-contains("SI_"), everything()) %>% 
-  filter(complete.cases(.))
+#remove incomplete time series
+data <- data[!data$Lot == 6, ] %>% droplevels()
+data <- data[!(data$Lot == 3 & data$Exp == "FPWW022"), ]
 
 #Define subset of SI for which to carry out the analysis
 ind <- readRDS("T:/PhD/Data_Analysis_3/Trait_pred/Data/SI_decorr.rds")
@@ -73,7 +53,6 @@ result <- f_calc_err(data = data,
                      ind = ind, 
                      traits = c("SnsFl0", "SnsCnp")) 
 
-
 # extract information 
 means1 <- extract_inf(result, trait = "SnsCnp", out = "means_exp")
 # saveRDS(means1, "O:/Projects/KP0011/1/Analysis/Senescence dynamics/Data/means_exp.rds")
@@ -88,5 +67,4 @@ stat_data1 <- extract_inf(result, trait = "SnsCnp", out = "stat_data_all")
 stat_data_Fl0 <- extract_inf(result, trait = "SnsFl0", out = "stat_data_all")
 # saveRDS(stat_data_Fl0, "O:/Projects/KP0011/1/Analysis/Senescence dynamics/Data/stat_data_all_Fl0.rds")
 
-
-
+#====================================================================================== -

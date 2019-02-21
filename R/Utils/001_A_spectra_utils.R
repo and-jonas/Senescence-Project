@@ -155,6 +155,125 @@ f_match_join <- function(spc, sen, gddah, matches) {
 
 }
 
+# Extract Index dynamics parameters from linear interpolations and parametric models
+# Old and ugly but functional
+f_ind_dyn <- function(data, methods, ind) {
+  
+  method <- list()
+  
+  for (i in methods) {
+    
+    print(paste("starting with interpolation method:", i))
+    
+    trait <- par <- list()
+    
+    list_traits <- ind
+    
+    design <- read.csv("T:/PhD/DataAnalysis/design.csv", sep = ";")
+    
+    for(k in list_traits){
+      
+      print(paste("starting with trait:", k ))
+      
+      onsen <- midsen <- endsen <- tsen <- sen_par <- list()
+      
+      for (j in unique(data$Plot_ID)){
+        
+        tryCatch({
+          
+          # interpolate
+          
+          if (i != "linear"){
+            
+            if (i == "logistic"){
+              
+              m1 <- nls(formula = as.formula(paste(k, "~ A + C/(1+exp(-b*(meas_GDDAH-M)))")), data = data[data$Plot_ID == j,], 
+                        start = list(A = 10, C = -10, b = 0.01, M = 675), na.action = na.exclude)
+              
+            } else if (i == "constrained gompertz"){
+              
+              m1 <- nls(formula = as.formula(paste(k, "~10*exp(-exp(-b*(meas_GDDAH-M)))")), data = data[data$Plot_ID == j,], 
+                        start = list(b = 0.01, M = 675), na.action = na.exclude)
+              
+            } else if (i == "gompertz"){
+              
+              m1 <- nls(formula = as.formula(paste(k, "~A+C*exp(-exp(-b*(meas_GDDAH-M)))")), data = data[data$Plot_ID == j,], 
+                        start = list(A = 0, C = 11, b = 0.01, M = 675), na.action = na.exclude)
+            }
+            
+            r1 <- range(data[data$Plot_ID == j,]$grading_GDDAH, na.rm = TRUE)
+            xNew1 <- seq(r1[1],r1[2],length.out = 1000)
+            
+            y <- predict(m1, list(grading_GDDAH = xNew1))
+            
+            l <- list(xNew1, y)
+            
+            names(l) <- c("x", "y")
+            
+          } else if (i == "linear"){
+            
+            x <- data[data$Plot_ID == j,]$meas_GDDAH
+            y <- data[data$Plot_ID == j,] %>% pull(k)
+            
+            l <- approx(x = x, y = y, 
+                        xout = seq(round(min(x, na.rm = TRUE),0), round(max(x, na.rm = TRUE), 0)))
+          }
+          
+          # Extract senescence dynamics parameters
+          
+          onsen[[j]] <- l[[1]][which(l[[2]] < 8)[1]]
+          midsen[[j]] <- l[[1]][which(l[[2]] < 5)[1]]
+          endsen[[j]] <- l[[1]][which(l[[2]] < 2)[1]]
+          tsen[[j]] <- endsen[[j]] - onsen[[j]]
+          
+        }, error=function(e){cat(paste("ERROR_", j, ":", sep = ""),conditionMessage(e), "\n")})
+        
+      }
+      
+      
+      # assemble data frames  
+      
+      sen_par <- do.call(rbind, Map(data.frame, "onsen" = onsen, "midsen" = midsen,
+                                    "endsen" = endsen, "tsen" = tsen))
+      
+      par[[k]] <- sen_par
+      
+    } 
+    
+    method[[i]] <- par
+    
+  }
+  
+  fun <- function(x) {
+    
+    all <- do.call("rbind", x)
+    id <- rownames(all)
+    dings <- strsplit(id, ".", fixed=TRUE)
+    trait <- sapply(dings, `[[`, 1)
+    pn <- sapply(dings, `[[`, 2)
+    all$Plot_ID <- pn
+    all$Trait <- trait
+    all <- all %>% dplyr::select("Trait", "Plot_ID", everything())
+    
+    return(all)
+    
+  }  
+  
+  all <- lapply(method, fun)
+  
+  all <- all %>%
+    Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2,by=c("Plot_ID", "Trait")), .)
+  
+  suf <- str_sub(methods, 1, 3)
+  trait <- c("onsen", "midsen", "endsen", "tsen")
+  
+  colnames <- paste(rep(trait, 4), rep(suf, each = 4), sep = "_")
+  colnames(all)[-c(1:2)] <- colnames
+  
+  return(all)
+  
+}
+
 # SI perf analysis
 # Old and ugly but functional
 f_calc_err <- function(data, method, ind, traits) {
@@ -302,7 +421,7 @@ f_calc_err <- function(data, method, ind, traits) {
 
 # Tidy up function output
 # Old and ugly but functional
-extract_inf <- function(data, trait, out){
+extract_inf <- function(data, trait, out) {
   
   #data: list output from the f_calc_err function
   #trait: either SnsFl0 for flag leaf or SnsCnp for canopy 

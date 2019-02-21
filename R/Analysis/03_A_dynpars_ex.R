@@ -24,7 +24,7 @@ source("O:/Projects/KP0011/1/Senescence-Project/R/Utils/001_A_spectra_utils.R")
 
 #====================================================================================== -
 
-# extract dynamics parameters ----
+# extract DynPars: Scorings ----
 
 data <- readRDS("O:/Projects/KP0011/1/Senescence-Project/Data/Scorings/scorings_scaled.rds") %>% 
   tidyr::gather(Trait, Score, SnsFl0:SnsCnp, factor_key = TRUE) %>% filter(complete.cases(.)) %>% 
@@ -109,15 +109,19 @@ saveRDS(df, file = "O:/Projects/KP0011/1/Senescence-Project/Analysis/Scorings/se
 
 #====================================================================================== -
 
+# extract DynPars: SI ----
+# old function, so far not re-factored for time reasons.
 
+data <- readRDS("O:/Projects/KP0011/1/Senescence-Project/Data/SI/SI_sc_posthead_compl.rds")
 
-#Define subset of SI for which to carry out the analysis
-ind <- readRDS("T:/PhD/Data_Analysis_3/Trait_pred/Data/SI_decorr.rds")
-#add narrow-band NDVI to the dataset as benchmark
-ind <- c(ind, "SI_NDVI_nb_ASD")
+#remove incomplete time series
+data <- data[!data$Lot == 6, ] %>% droplevels()
+data <- data[!(data$Lot == 3 & data$Exp == "FPWW022"), ]
 
-#calculate Error and pearson correlation coefficients for dynamics parameters
-result <- f_calc_err(data = data, method = "lin", ind = ind, traits = c("SnsFl0", "SnsCnp")) 
-# saveRDS(result, "O:/Projects/KP0011/1/Analysis/Senescence dynamics/Data/Function_output/Result.rds")
+#extract parameters from linear interpolation, using custom function
+ind <- dplyr::select(data, contains("SI")) %>% names()
+pars <- f_ind_dyn(data, methods = "linear", ind = ind_)
 
-result <- readRDS("O:/Projects/KP0011/1/Analysis/Senescence dynamics/Data/Function_output/Result.rds")  
+saveRDS(pars, file = "O:/Projects/KP0011/1/Senescence-Project/Analysis/SI/senpars_SI.rds")
+
+#====================================================================================== -
