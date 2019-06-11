@@ -11,23 +11,32 @@
 
 .libPaths("T:/R3UserLibs")
 
-library(dplyr)
+library(tidyverse)
 library(prospectr)
-library(tidyr)
 library(stringr)
-library(readxl)
 library(nls.multstart)
-library(purrr)
-library(broom)
 
-source("O:/Projects/KP0011/1/Senescence-Project/R/Utils/001_A_spectra_utils.R")
+#set working directory
+wd <- "O:/Projects/KP0011/1/Senescence-Project/"
+setwd(wd)
+
+#load required functions
+source("R/Utils/001_spectra_utils.R")
+
+#define source and sink directories
+dirfrom <- "Data/"
+dirto <- "Analysis/SI/"
 
 #====================================================================================== -
 
+#load data
+data <- readRDS(paste(dirfrom, "Scorings/scorings_scaled.rds", sep = ""))
+
 # extract DynPars: Scorings ----
 
-data <- readRDS("O:/Projects/KP0011/1/Senescence-Project/Data/Scorings/scorings_scaled.rds") %>% 
-  tidyr::gather(Trait, Score, SnsFl0:SnsCnp, factor_key = TRUE) %>% filter(complete.cases(.)) %>% 
+data <- data %>% 
+  tidyr::gather(Trait, Score, SnsFl0:SnsCnp, factor_key = TRUE) %>% 
+  filter(complete.cases(.)) %>% 
   data.frame()
 
 # do linear interpolation of scorings
@@ -112,7 +121,7 @@ saveRDS(df, file = "O:/Projects/KP0011/1/Senescence-Project/Analysis/Scorings/se
 # extract DynPars: SI ----
 # old function, so far not re-factored for time reasons.
 
-data <- readRDS("O:/Projects/KP0011/1/Senescence-Project/Data/SI/SI_sc_posthead_compl.rds")
+data <- readRDS(paste(dirfrom, "SI/SI_sc_posthead_compl.rds", sep = ""))
 
 #remove incomplete time series
 data <- data[!data$Lot == 6, ] %>% droplevels()
@@ -120,7 +129,7 @@ data <- data[!(data$Lot == 3 & data$Exp == "FPWW022"), ]
 
 #extract parameters from linear interpolation, using custom function
 ind <- dplyr::select(data, contains("SI")) %>% names()
-pars <- f_ind_dyn(data, methods = "linear", ind = ind_)
+pars <- f_ind_dyn(data, methods = "linear", ind = ind)
 
 saveRDS(pars, file = "O:/Projects/KP0011/1/Senescence-Project/Analysis/SI/senpars_SI.rds")
 

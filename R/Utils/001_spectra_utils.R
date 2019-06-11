@@ -593,6 +593,7 @@ Gompertz_flex <- function(A, C, b, M, tempsum) {
 
 # Linear interpolation
 lin_approx <- function(data){
+  data <- as.data.frame(data)
   out <- approx(data[,"grading_GDDAH"], data[,"Score"], xout = seq(round(min(data[,"grading_GDDAH"], na.rm = TRUE), 0),
                                                                    round(max(data[,"grading_GDDAH"], na.rm = TRUE), 0), 1))
   names(out) <- c("grading_GDDAH", ".fitted")
