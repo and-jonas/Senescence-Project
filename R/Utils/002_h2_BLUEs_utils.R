@@ -1,5 +1,3 @@
-#HELPER FUNCTIONS ----
-
 f_spats <- function(data, response = "value", random = as.formula("~Yf + Xf"),
                     genotype.as.random = TRUE, genotype = "Gen_Name") {
   SpATS(response = response, random = ~ Yf + Xf,
@@ -40,8 +38,7 @@ extract_BLUE <- function(object){
 }
 
 #calculate heritability using BLUEs
-
-get_h2_years <- function(data, fixed = fixed, random = "Gen_Name"){
+get_h2_years <- function(data, fixed = fixed, random = random){
   #check if random is factor and convert if required
   if(!is.factor(data$Gen_Name)){
     print("Gen_Name converted to factor")
@@ -50,7 +47,8 @@ get_h2_years <- function(data, fixed = fixed, random = "Gen_Name"){
   #fit linear mixed model
   mod <- asreml(fixed = as.formula(paste("BLUE ~", fixed)),
                 random = as.formula(paste("~", random)),
-                data = data)
+                data = data,
+                trace = FALSE)
   #extract variance components
   GenVar <- summary(mod)$varcomp["Gen_Name", "component"]
   ErrVar <- summary(mod)$varcomp["units!R","component"]
@@ -58,3 +56,23 @@ get_h2_years <- function(data, fixed = fixed, random = "Gen_Name"){
   H2 <- round(GenVar/(GenVar + ErrVar/2), 2)
 }
 
+#calculate 3-year BLUEs
+get_BLUE <- function(data, fixed = fixed, random = random){
+  #check if random is factor and convert if required
+  if(!is.factor(data$Gen_Name)){
+    print("Gen_Name converted to factor")
+    data$Gen_Name <- as.factor(data$Gen_Name)
+  }
+  #fit model
+  mod <- asreml(fixed = as.formula(paste("BLUE ~", fixed)),
+                random = as.formula(paste("~", random, sep = "")),
+                data = data, 
+                trace = FALSE)
+  #create prediction
+  pred <- predict(mod, "Gen_Name")
+  #create output tibble
+  blue <- pred$pvals %>% 
+    dplyr::select(Gen_Name, predicted.value) %>% 
+    as_tibble() %>% 
+    rename(Gen_Name = 1, BLUE_3Y = 2)
+}

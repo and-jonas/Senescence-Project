@@ -10,14 +10,12 @@
 
 .libPaths("T:/R3UserLibs")
 
-library(dplyr)
+library(tidyverse)
 library(prospectr)
-library(tidyr)
 library(stringr)
-library(readxl)
 
 source("O:/Projects/KP0011/3/Project/Septoria-Project/R/Utils/001_spectra_Utils.R")
-source("O:/Projects/KP0011/1/Senescence-Project/R/Utils/001_A_spectra_utils.R")
+source("O:/Projects/KP0011/1/Senescence-Project/R/Utils/001_spectra_utils.R")
 
 #====================================================================================== -
 

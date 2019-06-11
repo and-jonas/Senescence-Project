@@ -55,11 +55,13 @@ Exp_wise <- Data %>%
                       .f = possibly(extract_BLUE, otherwise = NA_real_)))
 
 # saveRDS(Exp_wise, paste(dirto, "Expwise.rds", sep = ""))
-w2_table <- Exp_wise %>% dplyr::select(Exp, Trait, W2) %>% unnest()
+w2_table <- Exp_wise %>% dplyr::select(Exp, Trait, w2) %>% unnest()
 
 #====================================================================================== -
 
 #h2 ----
+
+Exp_wise <- readRDS("Analysis/ANOVA/Expwise.rds")
 
 #calculate across-year heritability for all senescence dynamics traits,
 #for GY, GPC, and heading date
@@ -67,14 +69,19 @@ BLUEs <- Exp_wise %>%
   dplyr::select(Exp, Trait, BLUE) %>% 
   filter(!is.na(BLUE)) %>% unnest()
 
-# saveRDS(BLUEs, paste(dirto, "BLUEs.rds", sep = ""))
+saveRDS(BLUEs, paste(dirto, "BLUEs.rds", sep = ""))
 
 Trait_wise <- BLUEs %>% 
   group_by(Trait) %>% nest() %>% 
   mutate(h2 = purrr::map(.x = data, fixed = "Exp", random = "Gen_Name",
-                         .f = get_h2_years))
+                         .f = possibly(get_h2_years, otherwise = NA_real_)),
+         BLUE = purrr::map(.x = data, fixed = "Exp + Gen_Name", random = "NULL",
+                           .f = possibly(get_BLUE, otherwise = NA_real_)))
 
-# saveRDS(Trait_wise, paste(dirto, "Traitwise.rds", sep = ""))
+saveRDS(Trait_wise, paste(dirto, "Traitwise.rds", sep = ""))
 h2_table <- Trait_wise %>% dplyr::select(Trait, h2) %>% unnest()
+BLUE <- Trait_wise %>% dplyr::select(Trait, BLUE) %>% filter(!is.na(BLUE)) %>% unnest()
 
 #====================================================================================== -
+
+
