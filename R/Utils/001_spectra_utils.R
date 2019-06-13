@@ -155,8 +155,117 @@ f_match_join <- function(spc, sen, gddah, matches) {
 
 }
 
+# extract errors and senescence dynamics parameters
+get_errors_and_dynpars <- function(data, method){
+  
+  if (method != "lin"){
+    
+    if (method == "log"){
+      
+      #fit logistic model to scoring and SVI values
+      m1 <- nls(formula = as.formula("scoring ~ A + C/(1+exp(-b*(grading_GDDAH-M)))"), data = data, 
+                start = list(A = 10, C = -10, b = 0.01, M = 675), na.action = na.exclude)
+      m2 <- nls(formula = as.formula("value ~ A + C/(1+exp(-b*(meas_GDDAH-M)))"), data = data, 
+                start = list(A = 10, C = -10, b = 0.01, M = 675), na.action = na.exclude)
+      
+    } else if (method == "cgom"){
+      
+      #fit constrained Gompertz model to scoring and SVI values
+      m1 <- nls(formula = as.formula("scoring ~10*exp(-exp(-b*(grading_GDDAH-M)))"), data = data, 
+                start = list(b = 0.01, M = 675), na.action = na.exclude)
+      m2 <- nls(formula = as.formula("value ~ 10*exp(-exp(-b*(meas_GDDAH-M)))"), data = data, 
+                start = list(b = 0.01, M = 675), na.action = na.exclude)
+      
+    } else if (method == "gom"){
+      
+      #fit flexible Gompertz model to scoring and SVI values
+      m1 <- nls(formula = as.formula("scoring ~ A+C*exp(-exp(-b*(grading_GDDAH-M)))"), data = data, 
+                start = list(A = 0, C = 11, b = 0.01, M = 675), na.action = na.exclude)
+      m2 <- nls(formula = as.formula("value ~ A+C*exp(-exp(-b*(meas_GDDAH-M)))"), data = data, 
+                start = list(A = 0, C = 11, b = 0.01, M = 675), na.action = na.exclude)
+    }
+    
+    #get min and max and create sequence of values to predict
+    r1 <- range(data$grading_GDDAH, na.rm = TRUE)
+    xNew1 <- seq(r1[1],r1[2],length.out = 1000)
+    
+    #create predictions
+    y <- predict(m1, list(grading_GDDAH = xNew1))
+    y2 <- predict(m2, list(meas_GDDAH = xNew1))
+    
+    #create output identical to linear interpolation (see below)
+    l <- list(xNew1, y)
+    ll <- list(xNew1, y2)
+    names(l) <- names(ll) <- c("x", "y")
+    
+  } else if (method == "lin"){
+    
+    x <- data$meas_GDDAH
+    y <- data$value
+    
+    #linear interpolation of SVI values
+    l <- approx(x = x, y = y, 
+                xout = seq(round(min(x, na.rm = TRUE),0), 
+                           round(max(x, na.rm = TRUE), 0)))
+    
+    x <- data$grading_GDDAH
+    y <- data$scoring
+    
+    #linear interpolation of Scorings
+    ll <- approx(x = x, y = y, 
+                 xout = seq(round(min(x, na.rm = TRUE), 0), 
+                            round(max(x, na.rm = TRUE), 0), 1))
+  }
+  
+  #Calculate error
+  d1 <- as.data.frame(do.call("cbind", l))
+  d2 <- as.data.frame(do.call("cbind", ll))
+  d3 <- merge(d1, d2, by = "x")
+  d3$y <- abs(d3$y.x - d3$y.y)
+  d3$y.x[is.na(d3$y.x)] <- 0
+  d3$y.y[is.na(d3$y.y)] <- 0
+  f1 <- approxfun(d3$x, d3$y.x-d3$y.y)     # piecewise linear function
+  f2 <- function(x) abs(f1(x))
+  Error <- integrate(f2, min(d3$x), max(d3$x), subdivisions = 2000)$value
+  
+  #Extract senescence dynamics parameters
+  onsen_SI <- l[[1]][which(l[[2]] < 8)[1]]
+  onsen_Trait <- ll[[1]][which(ll[[2]] < 8)[1]]
+  midsen_SI <- l[[1]][which(l[[2]] < 5)[1]]
+  midsen_Trait <- ll[[1]][which(ll[[2]] < 5)[1]]
+  endsen_SI <- l[[1]][which(l[[2]] < 2)[1]]
+  endsen_Trait <- ll[[1]][which(ll[[2]] < 2)[1]]
+  tsen_SI <- endsen_SI - onsen_SI
+  tsen_Trait <- endsen_Trait - onsen_Trait
+  
+  #create data frame
+  func_out <- do.call(rbind, Map(tibble, "onsen_SI" = onsen_SI, "midsen_SI" = midsen_SI,
+                                 "endsen_SI" = endsen_SI, "tsen_SI" = tsen_SI,
+                                 "onsen_Trait" = onsen_Trait, "midsen_Trait" = midsen_Trait,
+                                 "endsen_Trait" = endsen_Trait, "tsen_Trait" = tsen_Trait)) %>% 
+    #add bias
+    mutate(d_onsen = onsen_SI - onsen_Trait,
+           d_midsen = midsen_SI - midsen_Trait,
+           d_endsen = endsen_SI - endsen_Trait,
+           d_tsen = tsen_SI - tsen_Trait) %>% 
+    #add error
+    mutate(Error = Error)
+  
+  return(func_out)
+  
+}
+
+#calculate correlation and p-values
+do_cor_test <- function(data, x, y, use = "pairwise.complete.obs", 
+                        method = "pearson", return = "estimate") {
+  cor <- cor.test(data %>% pull(x), data %>% pull(y), 
+                  use = use, method = method) %>% 
+    broom::tidy(.) %>% pull(return)
+  return(cor)
+}
+
 # Extract Index dynamics parameters from linear interpolations and parametric models
-# Old and ugly but functional
+# DEPRECATED
 f_ind_dyn <- function(data, methods, ind) {
   
   method <- list()
@@ -275,7 +384,7 @@ f_ind_dyn <- function(data, methods, ind) {
 }
 
 # SI perf analysis
-# Old and ugly but functional
+# DEPRECATED
 f_calc_err <- function(data, method, ind, traits) {
   
   trait <- par <- list()
@@ -420,7 +529,7 @@ f_calc_err <- function(data, method, ind, traits) {
 }
 
 # Tidy up function output
-# Old and ugly but functional
+# DEPRECATED
 extract_inf <- function(data, trait, out) {
   
   #data: list output from the f_calc_err function

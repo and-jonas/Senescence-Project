@@ -68,6 +68,7 @@ get_BLUE <- function(data, fixed = fixed, random = random){
                 random = as.formula(paste("~", random, sep = "")),
                 data = data, 
                 trace = FALSE)
+  
   #create prediction
   pred <- predict(mod, "Gen_Name")
   #create output tibble
