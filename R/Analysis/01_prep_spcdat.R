@@ -64,10 +64,11 @@ spc <- readRDS("Spectra/spectra_raw.rds")
 
 #load unscaled scoring data (2104 Plots)
 scr <- readRDS("Scorings/scorings_scaled.rds")
+# scr <- readRDS("Scorings/scorings_unscaled.rds")
 
 #load gddah_data and match_dates
 gddah_data <- read.csv("Helper_files/gddah_data.csv")
-match_dates <- read_excel("Helper_files/match_dates.xlsx")
+match_dates <- readxl::read_excel("Helper_files/match_dates.xlsx")
 
 #====================================================================================== -
 

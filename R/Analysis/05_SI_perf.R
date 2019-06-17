@@ -45,15 +45,16 @@ ind <- c(ind, "SI_NDVI_nb_ASD")
 # from linear interpolations or parametric models;
 # calculate area between the interpolation curves;
 # calculate bias as difference;
+plan("multiprocess")
 perf <- data %>% gather(SVI, value, contains("SI_")) %>% 
   gather(Trait, scoring, contains("Sns")) %>%
   filter(SVI %in% ind) %>%
   group_by(Exp, Trait, SVI, Plot_ID) %>% 
   nest() %>% 
+  #alternatively, use purrr::map (4-5 times slower!!)
   mutate(eval = furrr::future_map(.x = data, method = "lin",
                                   .f = possibly(get_errors_and_dynpars, otherwise = NA_real_)))
-  # mutate(eval = purrr::map(.x = data, method = "lin",
-  #                          .f = possibly(get_errors_and_dynpars, otherwise = NA_real_)))
+plan("sequential")
 
 #get index performance metrics per experiment and trait
 metrics_exp <- perf %>% dplyr::select(-data) %>% 

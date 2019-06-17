@@ -1,3 +1,4 @@
+#Wrapper for SpATS
 f_spats <- function(data, response = "value", random = as.formula("~Yf + Xf"),
                     genotype.as.random = TRUE, genotype = "Gen_Name") {
   SpATS(response = response, random = ~ Yf + Xf,
@@ -27,14 +28,28 @@ construct_genotype_prediction_matrix <- function(object, newdata) {
 }
 
 #extract BLUE from SpATS
-extract_BLUE <- function(object){
+extract_BLUE <- function(object) {
+  fitted <- object$fitted
   intercept <- object$coeff['Intercept']
   gen_mod_mat <- construct_genotype_prediction_matrix(object, object$data)
   gen_coeff <- object$coeff[1:ncol(gen_mod_mat)]
+  geno_pred <- as.vector(gen_mod_mat %*% gen_coeff)
   BLUE <- as.data.frame(intercept + gen_coeff) %>% 
     rownames_to_column() %>% 
     as_tibble() %>% 
     rename(Gen_Name = 1, BLUE = 2)
+}
+
+#extract spatial trend
+get_spatial <- function(object){
+  fitted <- object$fitted
+  intercept <- object$coeff['Intercept']
+  gen_mod_mat <- construct_genotype_prediction_matrix(object, object$data)
+  gen_coeff <- object$coeff[1:ncol(gen_mod_mat)]
+  geno_pred <- as.vector(gen_mod_mat %*% gen_coeff)
+  spatial <- fitted-geno_pred-intercept
+  spatial <- cbind(object$data, spatial) %>% as_tibble()
+  return(spatial)
 }
 
 #calculate heritability using BLUEs
