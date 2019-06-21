@@ -64,7 +64,7 @@ spc <- readRDS("Spectra/spectra_raw.rds")
 
 #load unscaled scoring data (2104 Plots)
 scr <- readRDS("Scorings/scorings_scaled.rds")
-# scr <- readRDS("Scorings/scorings_unscaled.rds")
+scr <- readRDS("Scorings/scorings_unscaled.rds")
 
 #load gddah_data and match_dates
 gddah_data <- read.csv("Helper_files/gddah_data.csv")
@@ -139,18 +139,18 @@ avg_rflt_cr_smth_der1 <- spc %>%
   f_cont_rem() %>%
   f_spc_smooth(3, 11, 0) %>%
   f_match_join(., scr, gddah_data, match_dates) %>%
-  filter(complete.cases(.))
-saveRDS(avg_rflt_cr_smth_der1, file = "Spectra/avg_rflt_cr_smth.rds")
+  filter(complete.cases(.)) 
+saveRDS(avg_rflt_cr_smth_der1, file = "Spectra/MM/avg_rflt_cr_smth.rds")
 
 # 6) remove continuum from smoothed and trimmed reflectance spectra
 avg_rflt_cr_smth_der1 <- spc %>%
   f_spc_avg() %>%
   f_spc_trim() %>%
   f_cont_rem() %>%
-  f_spc_smooth(3, 11, 1) %>%
+  f_spc_smooth(3, 11, 0) %>%
   f_match_join(., scr, gddah_data, match_dates) %>%
   filter(complete.cases(.))
-saveRDS(avg_rflt_cr_smth_der1, file = "Spectra/avg_rflt_cr_smth_der1.rds")
+saveRDS(avg_rflt_cr_smth_der1, file = "Spectra/MM/avg_rflt_contrem_smth.rds")
 
 #====================================================================================== -
 
